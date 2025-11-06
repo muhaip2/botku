@@ -1,0 +1,28 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish with Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          secrets: |
+            TELEGRAM_API_URL
+          command: deploy --minify
+
+      - name: Set Telegram Webhook (optional)
+        if: ${{ secrets.WORKER_WEBHOOK_URL != '' }}
+        run: |
+          curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_API_URL##*bot }}/setWebhook?url=${{ secrets.WORKER_WEBHOOK_URL }}" | jq .
+          curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_API_URL##*bot }}/getWebhookInfo" | jq .
