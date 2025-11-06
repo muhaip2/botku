@@ -1,77 +1,39 @@
-# wrangler.toml — Cloudflare Worker (Modules)
-name = "tg-bot-worker"
-main = "worker_inline_menu_stats_tz_watermark_bimg.js"
+name = "botku-worker"
+main = "src/worker.js"
 compatibility_date = "2024-11-01"
+workers_dev = true
 
-# ===== KV Namespaces =====
-# Ganti ID berikut dari hasil:
-#   wrangler kv:namespace create SUBSCRIBERS
-#   wrangler kv:namespace create --preview SUBSCRIBERS
-[[kv_namespaces]]
-binding    = "SUBSCRIBERS"
-id         = "YOUR_KV_NAMESPACE_ID"
-preview_id = "YOUR_KV_NAMESPACE_PREVIEW_ID"
+# Bind KV namespace (buat dari wrangler: wrangler kv:namespace create "BOT_DATA")
+kv_namespaces = [
+  { binding = "BOT_DATA", id = "<KV_NAMESPACE_ID>", preview_id = "<KV_NAMESPACE_PREVIEW_ID>" }
+]
 
-# ===== Vars (tanpa rahasia). TELEGRAM_API_URL diset sbg SECRET, bukan di sini. =====
 [vars]
-# Endpoint API kamu untuk lookup IP:Port → info (ISP, flag, dsb.)
-API_URL           = "https://example.com/api?ip="
+# Wajib
+TELEGRAM_API_URL = "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/"
+API_URL = "https://example.com/api?="
 
-# Domain worker kamu untuk wildcarding (subdomain akan dipilih acak dari WILDCARD_* di bawah)
-SERVER_WILDCARD   = "your-wildcard.example"
-# Domain CDN/CF untuk direct SNI VLESS/TROJAN
-SERVER_VLESS      = "your-cf-vless.example"
-SERVER_TROJAN     = "your-cf-trojan.example"
-
-# UUID untuk VLESS/TROJAN (password trojan = UUID yang sama)
-PASSUUID          = "replace-with-your-uuid"
-
-# Admin Telegram ID, koma-separate
-ADMIN_IDS         = "123456789,987654321"
-
-# Timezone untuk statistik/tren
-TIMEZONE          = "Asia/Jakarta"
-
-# Watermark di setiap pesan (bawah/default). Set ke string kosong "" jika tidak ingin watermark.
-ADMIN_WATERMARK   = "━━━━━━━━━━━━━━━━━━━\\n👤 Admin: @SWDSTORE\\n📎 t.me/SWDSTORE\\n━━━━━━━━━━━━━━━━━━━"
-WATERMARK_POSITION = "bottom"  # "bottom" | "top"
-
-# ===== Wildcard Map (opsional) =====
-# Peta kunci→host wildcard. Jika SERVER_WILDCARD = "your-wildcard.example",
-# dan map berisi "cache":"cache.netflix.com" maka host final = "cache.netflix.com" (sudah FQDN).
-# Kamu juga bisa isi nilai "ava" → "ava" dan nanti digabung jadi "ava.your-wildcard.example".
-WILDCARD_MAP_JSON = """{
-  "cache": "cache.netflix.com",
-  "quiz": "quiz.vidio.com",
-  "support": "support.zoom.us",
-  "ava": "ava",
-  "df": "df"
-}"""
-# Kunci yang akan diacak untuk wildcard (jika kosong → pakai semua key dari map)
-WILDCARD_KEYS     = "cache,quiz,support,ava,df"
-
-# ===== Proxy Pool (opsional) =====
-# Bisa isi lokal via ENV PROXY_POOL (dipisah koma) + remote via URL di bawah.
-# Remote akan di-cache di KV (TTL detik).
-PROXY_POOL_URL    = "https://raw.githubusercontent.com/your/repo/main/proxies.txt"
-PROXY_POOL_TTL    = "900"
-
-# ===== Transports opsional =====
-USE_GRPC          = "true"
-GRPC_SERVICE_NAME = "grpc"
-
-ENABLE_REALITY    = "true"
-REALITY_SERVER    = "your-reality-host.example"
-REALITY_PORT      = "443"
-REALITY_PUBLIC_KEY = "xxxxx"
-REALITY_SHORT_ID   = "abcd"
-REALITY_SNI        = "www.cloudflare.com"
-REALITY_FINGERPRINT = "chrome"
-
-# ===== Limiter & Cooldown =====
-LIMIT_MAX_PER_MIN = "30"   # token per menit
-LIMIT_BURST       = "20"   # bucket burst
-CMD_COOLDOWN_MS   = "1500" # jeda per perintah berat (ms)
-
-# ===== Catatan: JANGAN taruh ini di [vars] (biar token aman) =====
-# TELEGRAM_API_URL = "https://api.telegram.org/bot<YOUR_TOKEN>/"  # set sebagai SECRET
+# Opsional (isi sesuai kebutuhan)
+SERVER_WILDCARD = ""
+SERVER_VLESS = ""
+SERVER_TROJAN = ""
+PASSUUID = ""
+ADMIN_IDS = ""
+ADMIN_WATERMARK = "────────────────────\n👤 Admin: @SWDSTORE\n📎 t.me/SWDSTORE"
+WATERMARK_POSITION = "bottom"
+TIMEZONE = "Asia/Jakarta"
+PROXY_POOL = ""
+PROXY_POOL_URL = ""
+PROXY_POOL_TTL = "900"
+REQ_DELAY_MS = "35"
+COUNTRY_PAGE_SIZE = "18"
+COUNTRY_LIST_LIMIT = "20"
+MAX_ACTIVE_IP_LIST = "6"
+RANDOM_PROXY_COUNT = "10"
+COUNTRY_CACHE_TTL = "600"
+LIMIT_MAX_PER_MIN = "30"
+LIMIT_BURST = "20"
+CMD_COOLDOWN_MS = "1200"
+SPEED_PINGS = "5"
+SPEED_DL_BYTES = "10000000"
+WILDCARD_MAP_JSON = "{\"cache\":\"cache.netflix.com\",\"quiz\":\"quiz.vidio.com\",\"support\":\"support.zoom.us\"}"
