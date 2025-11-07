@@ -1,60 +1,65 @@
 // src/keyboards.js
-export function K_MAIN() { /* sudah ada */ }
-export function K_USER() { /* sudah ada */ }
-export function K_ADMIN() { /* sudah ada */ }
+// Helper keyboard untuk menampilkan daftar negara / proxy + pagination
+export const perPageCountries = 4; // ubah jadi 6 kalau mau 6 negara per halaman
+export const perPageProxies = 6;   // jumlah ip/port per halaman
 
-// ====== Tambahan ======
-export const COUNTRY_PAGE_SIZE = 6;      // ganti 4 jika mau 4 per halaman
-export const PROXY_PAGE_SIZE   = 10;     // banyak IP per halaman
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
-// list: [{ code:'US', name:'United States', count:123 }, ...]
-export function K_countryList(list, page = 1, pageSize = COUNTRY_PAGE_SIZE) {
-  const total = list.length;
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const p = Math.min(Math.max(1, page), pages);
-  const start = (p - 1) * pageSize;
-  const slice = list.slice(start, start + pageSize);
+/**
+ * K_countryList(countryCodes, page)
+ * - countryCodes: array of country codes (string)
+ * - page: zero-based page index
+ */
+export function K_countryList(countryCodes = [], page = 0) {
+  const pages = chunkArray(countryCodes, perPageCountries);
+  const real = pages[page] || [];
+  const rows = real.map(code => [{ text: code, callback_data: `SELECT_COUNTRY|${code}` }]);
 
-  const rows = slice.map(c => ([
-    { text: `${flag(c.code)} ${c.name} (${c.count})`,
-      callback_data: `C_PICK|${c.code}|1` } // page=1 utk daftar IP
-  ]));
-
-  // baris navigasi
+  // pagination buttons
   const nav = [];
-  if (p > 1) nav.push({ text: '⬅️ Sebelumnya', callback_data: `C_LIST|${p - 1}` });
-  nav.push({ text: `📄 ${p}/${pages}`, callback_data: 'C_NOP' });
-  if (p < pages) nav.push({ text: 'Berikutnya ➡️', callback_data: `C_LIST|${p + 1}` });
+  if (page > 0) nav.push({ text: '⬅️ Prev', callback_data: `COUNTRY_PAGE|${page - 1}` });
+  if (page < pages.length - 1) nav.push({ text: 'Next ➡️', callback_data: `COUNTRY_PAGE|${page + 1}` });
   if (nav.length) rows.push(nav);
 
-  // tombol kembali ke menu user
-  rows.push([{ text: '↩️ Kembali', callback_data: 'OPEN_CMD|/menu_user' }]);
-
+  rows.push([{ text: '🔙 Tutup', callback_data: 'CLOSE' }]);
   return { inline_keyboard: rows };
 }
 
-// ips: array of strings, e.g. ["1.2.3.4:443", ...]
-export function K_proxyPage(code, page = 1, pageSize = PROXY_PAGE_SIZE) {
-  const nav = [];
-  if (page > 1) nav.push({ text: '⬅️ Sebelumnya', callback_data: `P_PAGE|${code}|${page - 1}` });
-  nav.push({ text: `📄 ${page}`, callback_data: 'C_NOP' });
-  nav.push({ text: 'Berikutnya ➡️', callback_data: `P_PAGE|${code}|${page + 1}` });
+/**
+ * K_proxyList(country, proxies, page)
+ * - country: country code
+ * - proxies: array of strings "ip:port"
+ */
+export function K_proxyList(country = '', proxies = [], page = 0) {
+  const pages = chunkArray(proxies, perPageProxies);
+  const real = pages[page] || [];
+  const rows = real.map((entry, i) => [{ text: entry, callback_data: `SELECT_PROXY|${country}|${page * perPageProxies + i}` }]);
 
+  const nav = [];
+  if (page > 0) nav.push({ text: '⬅️ Prev', callback_data: `PROXY_PAGE|${country}|${page - 1}` });
+  if (page < pages.length - 1) nav.push({ text: 'Next ➡️', callback_data: `PROXY_PAGE|${country}|${page + 1}` });
+  if (nav.length) rows.push(nav);
+
+  rows.push([{ text: '🔙 Kembali', callback_data: 'OPEN_CMD|/proxyip' }]);
+  return { inline_keyboard: rows };
+}
+
+/**
+ * K_proxyActions(ipport)
+ * - ipport: "ip:port"
+ */
+export function K_proxyActions(ipport = '') {
   return {
     inline_keyboard: [
-      nav,
-      [{ text: '↩️ Daftar Negara', callback_data: 'C_LIST|1' }]
+      [
+        { text: 'Buat VLESS ⚡', callback_data: `MAKE_VLESS|${ipport}` },
+        { text: 'Buat TROJAN ⚔️', callback_data: `MAKE_TROJAN|${ipport}` }
+      ],
+      [{ text: '🔙 Kembali', callback_data: 'OPEN_CMD|/proxyip' }]
     ]
   };
 }
-
-// helper bendera sederhana (ISO 3166-1 alpha-2)
-function flag(code) {
-  try {
-    const A = 0x1F1E6;
-    const a = 'A'.charCodeAt(0);
-    const c1 = code[0].toUpperCase().charCodeAt(0) - a + A;
-    const c2 = code[1].toUpperCase().charCodeAt(0) - a + A;
-    return String.fromCodePoint(c1, c2);
-  } catch { return '🌐'; }
-      }
