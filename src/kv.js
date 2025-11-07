@@ -1,7 +1,15 @@
 // src/kv.js
-// Abstraksi sederhana untuk KV namespace "BOT_DATA"
+// Pembungkus Cloudflare KV + helper statistik/subscribers
 
-const KV = {
+import {
+  KV_SUBS,
+  STATS_GLOBAL,
+  STATS_DAILY_PREFIX,
+  STATS_USER_PREFIX
+} from './settings.js';
+
+// Ekspor objek KV bila ada modul yang ingin akses langsung
+export const KV = {
   async get(env, key) {
     const raw = await env.BOT_DATA.get(key);
     if (!raw) return null;
@@ -9,23 +17,31 @@ const KV = {
   },
   set(env, key, val) {
     return env.BOT_DATA.put(key, JSON.stringify(val));
+  },
+  async list(env, prefix) {
+    let cursor;
+    const keys = [];
+    // iterasi sampai habis
+    // (dipakai beberapa util, aman kalau belum dibutuhkan)
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const r = await env.BOT_DATA.list({ prefix, cursor });
+      keys.push(...r.keys.map(k => k.name));
+      if (r.list_complete || !r.cursor) break;
+      cursor = r.cursor;
+    }
+    return keys;
   }
 };
 
-// Keys yang dipakai statistik & subscribers
-const KV_SUBS = 'subs:list';
-const STATS_GLOBAL = 'stats:global';
-const STATS_DAILY_PREFIX = 'stats:daily:';
-const STATS_USER_PREFIX  = 'stats:user:';
-
-// Tambah subscriber ke set unik
+// Tambah subscriber unik
 export async function addSubscriber(env, chatId) {
   const set = new Set((await KV.get(env, KV_SUBS)) || []);
   set.add(String(chatId));
   await KV.set(env, KV_SUBS, Array.from(set));
 }
 
-// Catat statistik pesan/command per user + global + harian
+// Catat statistik global / user / harian
 export async function statsTrack(env, userId, username, chatType, cmd = 'message') {
   const todayKey = (() => {
     const d = new Date();
@@ -41,7 +57,7 @@ export async function statsTrack(env, userId, username, chatType, cmd = 'message
   g.lastSeenAt = new Date().toISOString();
   await KV.set(env, STATS_GLOBAL, g);
 
-  // Per user
+  // User
   const uKey = STATS_USER_PREFIX + userId;
   const u = (await KV.get(env, uKey)) || {
     messages: 0,
@@ -54,7 +70,7 @@ export async function statsTrack(env, userId, username, chatType, cmd = 'message
   u.commands[cmd] = (u.commands[cmd] || 0) + 1;
   await KV.set(env, uKey, u);
 
-  // Harian (private / group)
+  // Harian
   const dKey = STATS_DAILY_PREFIX + todayKey;
   const d = (await KV.get(env, dKey)) || { messages: 0, private: 0, group: 0 };
   d.messages++;
@@ -62,7 +78,7 @@ export async function statsTrack(env, userId, username, chatType, cmd = 'message
   await KV.set(env, dKey, d);
 }
 
-// Sinkronkan totalUsers berdasarkan jumlah subscriber unik
+// Sinkronkan totalUsers = jumlah subs unik
 export async function ensureTotalUsers(env) {
   const subs = new Set((await KV.get(env, KV_SUBS)) || []);
   const g = (await KV.get(env, STATS_GLOBAL)) || { totalMessages: 0, totalUsers: 0 };
