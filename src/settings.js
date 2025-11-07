@@ -1,13 +1,12 @@
 /**
  * Kumpulan konstanta KEY untuk KV.
- * Dipakai oleh pool.js, dll.
  */
-export const KV_REMOTE_POOL   = 'pool:remote:list';     // cache daftar IP/proxy remote
-export const KV_COUNTRY_CACHE = 'pool:country:counts';  // cache agregasi IP per negara
+export const KV_REMOTE_POOL    = 'pool:remote:list';     // cache daftar IP/proxy remote
+export const KV_COUNTRY_CACHE  = 'pool:country:counts';  // cache agregasi IP per negara
+export const KV_TRAFFIC_DAILY  = 'stats:traffic:today';  // dipakai telegram.js & kv.statsTrack
 
 /**
  * Bangun object konfigurasi dari ENV Pages.
- * Pastikan semua optional punya default aman.
  */
 export function buildSettings(env) {
   return {
@@ -32,7 +31,6 @@ export function buildSettings(env) {
 
 /**
  * Format waktu sekarang sesuai timezone.
- * Digunakan di bot.js/features.js.
  */
 export function formatNowTZ(tz = 'Asia/Jakarta') {
   try {
