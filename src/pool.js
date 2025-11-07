@@ -1,8 +1,7 @@
 // src/pool.js
-// Util & KV helpers khusus pool + country counts cache
+// Pool proxy + cache country counts + helper untuk ambil IP per negara
 
 import { fetchMeta } from './meta.js';
-import { buildSettings } from './settings.js';
 
 /* ====================== KV ====================== */
 const KV_REMOTE_POOL   = 'pool:remote:v1';       // { updatedAt, list:[] }
@@ -19,7 +18,7 @@ const KV = {
   }
 };
 
-/* ====================== helpers ====================== */
+/* ====================== utils ====================== */
 const ts = () => Date.now();
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -46,7 +45,7 @@ function ccToFlag(cc) {
          String.fromCodePoint(A + (c.charCodeAt(1) - 65));
 }
 
-/* ====================== pool merge ====================== */
+/* ====================== fetch remote ====================== */
 async function fetchRemotePool(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error('remote pool fetch failed: ' + r.status);
@@ -60,6 +59,7 @@ async function fetchRemotePool(url) {
   return parsePoolText(await r.text());
 }
 
+/* ====================== public API ====================== */
 export async function mergedPool(settings, env, { refresh = false } = {}) {
   const local = settings.PROXY_POOL || [];
   let remote = [];
@@ -74,17 +74,15 @@ export async function mergedPool(settings, env, { refresh = false } = {}) {
       try {
         remote = await fetchRemotePool(settings.PROXY_POOL_URL);
         await KV.set(env, KV_REMOTE_POOL, { updatedAt: now, list: remote });
-      } catch (_e) {
+      } catch {
         remote = cached?.list || [];
       }
     }
   }
 
-  // unique
   return Array.from(new Set([...local, ...remote]));
 }
 
-/* ====================== country counts ====================== */
 export async function getCountryCountsCached(env) {
   const cache = await KV.get(env, KV_COUNTRY_CACHE);
   return cache?.list || null;
@@ -100,7 +98,8 @@ export async function refreshCountryCounts(s, env) {
 
     try {
       const m = await fetchMeta(s, ip, port);
-      // derive cc from emoji flag if ada, atau dari nama negara
+
+      // derive cc
       let cc = '';
       if (m.flag) {
         const cps = [...m.flag].map(ch => ch.codePointAt(0));
@@ -115,8 +114,8 @@ export async function refreshCountryCounts(s, env) {
       const cur = map.get(cc) || { cc, flag: m.flag || ccToFlag(cc), count: 0 };
       cur.count++;
       map.set(cc, cur);
-    } catch (_e) {
-      // ignore single ip errors
+    } catch {
+      // ignore
     }
 
     if (s.REQ_DELAY_MS > 0) await sleep(s.REQ_DELAY_MS);
@@ -125,9 +124,8 @@ export async function refreshCountryCounts(s, env) {
   let list = Array.from(map.values()).sort((a, b) => b.count - a.count);
   if (s.COUNTRY_LIST_LIMIT > 0) list = list.slice(0, s.COUNTRY_LIST_LIMIT);
 
-  const now = ts();
   await KV.set(env, KV_COUNTRY_CACHE, {
-    updatedAt: now,
+    updatedAt: ts(),
     ttlSec: s.COUNTRY_CACHE_TTL,
     list
   });
@@ -135,7 +133,6 @@ export async function refreshCountryCounts(s, env) {
   return list;
 }
 
-/* ====================== country -> active IP list ====================== */
 export async function countryActiveIPs(s, env, cc, want = 6) {
   const pool = await mergedPool(s, env, {});
   const out = [];
@@ -153,7 +150,7 @@ export async function countryActiveIPs(s, env, cc, want = 6) {
         out.push(`${ip}:${port}`);
         if (out.length >= want) break;
       }
-    } catch (_e) {
+    } catch {
       // ignore
     }
 
@@ -161,4 +158,28 @@ export async function countryActiveIPs(s, env, cc, want = 6) {
   }
 
   return out;
-                                }
+}
+
+/** Random list dengan meta: [{ip,port,meta}] */
+export async function randomProxyList(s, env, count = 10) {
+  const pool = await mergedPool(s, env, {});
+  const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+  const out = [];
+
+  for (const raw of shuffled) {
+    const { ip, port } = parseIPPort(raw);
+    if (!ipValid(ip) || !portValid(port)) continue;
+
+    try {
+      const m = await fetchMeta(s, ip, port);
+      out.push({ ip, port, meta: m });
+    } catch {
+      // skip
+    }
+
+    if (out.length >= count) break;
+    if (s.REQ_DELAY_MS > 0) await sleep(s.REQ_DELAY_MS);
+  }
+
+  return out;
+      }
