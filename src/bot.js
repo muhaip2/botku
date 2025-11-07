@@ -8,7 +8,6 @@ import { runBg } from './utils.js';
 
 export default {
   async fetch(request, env, ctx) {
-    // Hanya terima POST ke /webhook
     const url = new URL(request.url);
     if (url.pathname !== '/webhook') return new Response('Not Found', { status: 404 });
     if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
@@ -16,16 +15,14 @@ export default {
     const settings = buildSettings(env);
     const body = await request.json().catch(() => ({}));
 
-    // ========= Callback Query (inline keyboard)
+    // ===== Callback Query
     if (body.callback_query) {
       const cb = body.callback_query;
       const chatId = String(cb.message?.chat?.id || '');
       const data = cb.data || '';
 
-      // Jawab callback secepatnya
       runBg(ctx, answerCallback(settings, cb.id, 'OK'));
 
-      // Pola: OPEN_CMD|/perintah  -> diubah jadi message supaya router pesan yang proses
       if (data.startsWith('OPEN_CMD|')) {
         const cmd = data.slice(9);
         body.message = {
@@ -35,12 +32,11 @@ export default {
         };
         delete body.callback_query;
       } else {
-        // tidak ada tindakan lanjut
         return new Response('OK', { status: 200 });
       }
     }
 
-    // ========= Message
+    // ===== Message
     if (body.message) {
       const msg       = body.message;
       const chatId    = String(msg.chat.id);
@@ -50,12 +46,12 @@ export default {
       const text      = (msg.text || '').trim();
       const isAdmin   = settings.ADMIN_IDS.map(String).includes(chatId);
 
-      // catat user & statistik -> background agar webhook cepat selesai
+      // catat statistik di background
       runBg(ctx, addSubscriber(env, chatId));
       runBg(ctx, statsTrack(env, chatId, username, chatType, 'message'));
       runBg(ctx, ensureTotalUsers(env));
 
-      // ---- /start & /menu
+      // ---- /start | /menu
       if (/^\/(start|menu)\b/i.test(text)) {
         const hello =
 `Halo *${firstName}*, aku adalah asisten pribadimu.
@@ -90,26 +86,23 @@ Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
         return new Response('OK', { status: 200 });
       }
 
-      // ---- /proxyip: siapkan daftar negara di background
+      // ---- /proxyip
       if (text === '/proxyip') {
         runBg(ctx, (async () => {
-          // refresh cache negara tanpa menghambat webhook
           await refreshCountryCounts(settings, env).catch(() => {});
           const list = await getCountryCountsCached(settings, env);
           if (!list || !list.length) {
             await sendMessage(settings, env, chatId, '❌ Gagal menyiapkan daftar negara.');
           } else {
-            await sendMessage(settings, env, chatId, '🌍 Daftar negara siap. Silakan pilih via tombol "Proxy per Negara" di menu.', null);
+            await sendMessage(settings, env, chatId, '🌍 Daftar negara siap. Buka *Proxy per Negara* di menu.', null);
           }
         })());
         return new Response('OK', { status: 200 });
       }
 
-      // Fallback: jangan spam—balas OK saja
       return new Response('OK', { status: 200 });
     }
 
-    // Tidak ada message/callback
     return new Response('OK', { status: 200 });
   }
 };
