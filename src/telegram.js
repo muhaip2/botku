@@ -1,38 +1,58 @@
-import { KV } from './kv.js';
-import { todayKeyUTC, applyWatermark } from './utils.js';
-import { KV_TRAFFIC_DAILY } from './settings.js';
+// src/telegram.js
+export async function sendMessage(settings, env, chatId, text, replyMarkup = null) {
+  const url = settings.TELEGRAM_API_URL + 'sendMessage';
+  const body = {
+    chat_id: chatId,
+    text: String(text),
+    parse_mode: 'HTML',              // <- pakai HTML biar aman
+    disable_web_page_preview: true,
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
 
-async function trackTraffic(env, bytes){
-  const key=KV_TRAFFIC_DAILY+todayKeyUTC();
-  const cur=await KV.get(env,key)||{bytesOut:0};
-  cur.bytesOut=(cur.bytesOut||0)+Math.max(0, bytes|0);
-  await KV.set(env,key,cur);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!json.ok) {
+    // log dan lempar error agar terlihat di Cloudflare Logs
+    console.log('sendMessage failed:', json);
+    throw new Error(json.description || `HTTP ${res.status}`);
+  }
+  return json.result;
 }
 
-export async function sendMessage(s, env, chat_id, text, reply_markup=null){
-  const body={chat_id,text:applyWatermark(text,s),parse_mode:'Markdown',disable_web_page_preview:true};
-  if(reply_markup) body.reply_markup=reply_markup;
-  const payload=JSON.stringify(body); await trackTraffic(env,payload.length);
-  const r=await fetch(s.TELEGRAM_API_URL+'sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
-  return r.json().catch(()=>({}));
+export async function editMessage(settings, env, chatId, messageId, text, replyMarkup = null) {
+  const url = settings.TELEGRAM_API_URL + 'editMessageText';
+  const body = {
+    chat_id: chatId,
+    message_id: messageId,
+    text: String(text),
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!json.ok) {
+    console.log('editMessage failed:', json);
+    throw new Error(json.description || `HTTP ${res.status}`);
+  }
+  return json.result;
 }
 
-export async function editMessage(s, env, chat_id, message_id, text, reply_markup=null){
-  const body={chat_id,message_id,text:applyWatermark(text,s),parse_mode:'Markdown',disable_web_page_preview:true};
-  if(reply_markup) body.reply_markup=reply_markup;
-  const payload=JSON.stringify(body); await trackTraffic(env,payload.length);
-  const r=await fetch(s.TELEGRAM_API_URL+'editMessageText',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
-  return r.json().catch(()=>({}));
-}
-
-export async function answerCallback(s,id,text=null,show=false){
-  const body={callback_query_id:id}; if(text){ body.text=text; body.show_alert=show; }
-  await fetch(s.TELEGRAM_API_URL+'answerCallbackQuery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-}
-
-export async function sendPhoto(s, env, chat_id, photo, caption=''){
-  const body={chat_id,photo,caption:applyWatermark(caption||'',s),parse_mode:'Markdown'};
-  const payload=JSON.stringify(body); await trackTraffic(env,payload.length);
-  const r=await fetch(s.TELEGRAM_API_URL+'sendPhoto',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
-  return r.json().catch(()=>({}));
-}
+export async function answerCallback(settings, callbackQueryId, text = 'OK', showAlert = false) {
+  const url = settings.TELEGRAM_API_URL + 'answerCallbackQuery';
+  const body = { callback_query_id: callbackQueryId, text, show_alert: showAlert };
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+      }
