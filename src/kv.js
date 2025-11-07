@@ -1,72 +1,71 @@
-// src/kv.js
-import {
-  STATS_GLOBAL,
-  STATS_DAILY_PREFIX,
-  STATS_USER_PREFIX,
-  SUBSCRIBERS_KEY,
-  todayKeyUTC,
-} from './settings.js';
-
-// Helper pembungkus KV Pages
-const KV = {
-  async get(env, key) {
-    const v = await env.BOT_DATA.get(key);
-    return v ? JSON.parse(v) : null;
-  },
-  async set(env, key, value) {
-    await env.BOT_DATA.put(key, JSON.stringify(value));
-  }
-};
-
-// Tambah subscriber (set unik)
-export async function addSubscriber(env, userId) {
-  const key = SUBSCRIBERS_KEY;
-  const set = (await KV.get(env, key)) || [];
-  if (!set.includes(userId)) {
-    set.push(userId);
-    await KV.set(env, key, set);
-    return true; // baru ditambahkan
-  }
-  return false;  // sudah ada
+// Util kecil untuk baca/tulis JSON di KV
+async function kvGetJSON(env, key, fallback) {
+  const raw = await env.BOT_DATA.get(key);
+  if (!raw) return structuredClone(fallback);
+  try { return JSON.parse(raw); } catch { return structuredClone(fallback); }
+}
+async function kvPutJSON(env, key, value) {
+  await env.BOT_DATA.put(key, JSON.stringify(value));
 }
 
-// Pastikan totalUsers di STATS_GLOBAL sinkron dengan jumlah subscriber
+/**
+ * Pastikan counter total user ada.
+ * @returns {Promise<number>} nilai total user saat ini
+ */
 export async function ensureTotalUsers(env) {
-  const subs = (await KV.get(env, SUBSCRIBERS_KEY)) || [];
-  const g = (await KV.get(env, STATS_GLOBAL)) || { totalMessages: 0, totalUsers: 0 };
-  g.totalUsers = subs.length;
-  await KV.set(env, STATS_GLOBAL, g);
-  return g.totalUsers;
+  const raw = await env.BOT_DATA.get('total_users');
+  if (!raw) {
+    await env.BOT_DATA.put('total_users', '0');
+    return 0;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
 }
 
-// Tracking statistik pesan/command per user + harian
-export async function statsTrack(env, userId, username, chatType, cmd = 'message') {
-  const dayKey  = STATS_DAILY_PREFIX + todayKeyUTC();
-  const userKey = STATS_USER_PREFIX + userId;
+/**
+ * Tambah subscriber baru (berdasarkan chat id).
+ * Tersimpan di key "subscribers" (array number/string).
+ */
+export async function addSubscriber(env, chatId) {
+  const key = 'subscribers';
+  const list = await kvGetJSON(env, key, []);
 
-  // Global
-  const g = (await KV.get(env, STATS_GLOBAL)) || { totalMessages: 0, totalUsers: 0 };
-  g.totalMessages++;
-  g.lastSeenAt = new Date().toISOString();
-  await KV.set(env, STATS_GLOBAL, g);
+  if (!list.includes(chatId)) {
+    list.push(chatId);
+    await kvPutJSON(env, key, list);
 
-  // Per user
-  const u = (await KV.get(env, userKey)) || { messages: 0, commands: {}, firstSeenAt: new Date().toISOString() };
-  u.messages++;
-  u.username = username || u.username || '';
-  u.lastSeenAt = new Date().toISOString();
-  u.commands[cmd] = (u.commands[cmd] || 0) + 1;
-  await KV.set(env, userKey, u);
-
-  // Harian
-  const d = (await KV.get(env, dayKey)) || { messages: 0, private: 0, group: 0 };
-  d.messages++;
-  // ⛳️ perbaikan dari error “Invalid assignment target”
-  if (String(chatType) === 'private') {
-    d.private = (d.private || 0) + 1;
-  } else {
-    d.group = (d.group || 0) + 1;
+    const current = await ensureTotalUsers(env);
+    await env.BOT_DATA.put('total_users', String(current + 1));
   }
-  d.updatedAt = new Date().toISOString();
-  await KV.set(env, dayKey, d);
+  return true;
+}
+
+/**
+ * Catat trafik harian berdasarkan tipe chat.
+ * Key: "stats:traffic:today"
+ * Struktur: { date: 'YYYY-MM-DD', private: number, group: number, total: number }
+ */
+export async function statsTrack(env, chatType) {
+  const key = 'stats:traffic:today';
+  const today = new Date().toISOString().slice(0, 10);
+
+  let data = await kvGetJSON(env, key, {
+    date: today, private: 0, group: 0, total: 0,
+  });
+
+  // Reset kalau tanggal berganti
+  if (data.date !== today) {
+    data = { date: today, private: 0, group: 0, total: 0 };
+  }
+
+  // —— FIX: jangan pakai (kondisi ? a : b)++ karena invalid assignment target
+  if (String(chatType) === 'private') {
+    data.private += 1;
+  } else {
+    data.group += 1;
+  }
+  data.total += 1;
+
+  await kvPutJSON(env, key, data);
+  return data;
 }
