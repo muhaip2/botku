@@ -1,4 +1,11 @@
 /**
+ * Kumpulan konstanta KEY untuk KV.
+ * Dipakai oleh pool.js, dll.
+ */
+export const KV_REMOTE_POOL   = 'pool:remote:list';     // cache daftar IP/proxy remote
+export const KV_COUNTRY_CACHE = 'pool:country:counts';  // cache agregasi IP per negara
+
+/**
  * Bangun object konfigurasi dari ENV Pages.
  * Pastikan semua optional punya default aman.
  */
@@ -7,8 +14,9 @@ export function buildSettings(env) {
     TELEGRAM_API_URL: env.TELEGRAM_API_URL || '',
     ADMIN_IDS: (env.ADMIN_IDS || '')
       .split(',')
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean),
+
     ADMIN_WATERMARK: env.ADMIN_WATERMARK || '',
     WATERMARK_POSITION: env.WATERMARK_POSITION || 'bottom',
     TIMEZONE: env.TIMEZONE || 'Asia/Jakarta',
@@ -23,8 +31,8 @@ export function buildSettings(env) {
 }
 
 /**
- * Format waktu sekarang sesuai timezone yang diberikan.
- * Diekspor karena di-import oleh bot.js/features.js.
+ * Format waktu sekarang sesuai timezone.
+ * Digunakan di bot.js/features.js.
  */
 export function formatNowTZ(tz = 'Asia/Jakarta') {
   try {
@@ -38,7 +46,6 @@ export function formatNowTZ(tz = 'Asia/Jakarta') {
       minute: '2-digit',
     });
   } catch {
-    // fallback universal jika TZ tidak valid
     return new Date().toISOString();
   }
 }
