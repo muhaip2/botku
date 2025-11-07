@@ -1,10 +1,11 @@
 // src/bot.js
 
 import { buildSettings, formatNowTZ } from './settings.js';
-import { sendMessage, editMessage, answerCallback } from './telegram.js';
-import { K_MAIN, K_USER, K_ADMIN } from './keyboards.js';
-import { addSubscriber, statsTrack, ensureTotalUsers } from './kv.js';
-import { runBg } from './utils.js'; // helper non-blocking
+import { sendMessage, answerCallback } from './telegram.js';
+import { K_MAIN, K_USER, K_ADMIN, K_USERS_PAGER } from './keyboards.js';
+import { addSubscriber, statsTrack, ensureTotalUsers,
+         upsertUserIndex, getUsersPage, getUsersTotal } from './kv.js';
+import { runBg } from './utils.js';
 
 // ——— Teks bantuan (Markdown)
 function helpUserText() {
@@ -13,12 +14,13 @@ function helpUserText() {
 
 • */menu* — buka menu utama.
 • */menu_user* — tampilkan tombol fitur user.
+• */myid* — lihat detail akun kamu.
 • */random_proxy* — ambil 1 proxy acak.
-• */speedtest* — uji kecepatan (mode ringan).
+• */speedtest* — uji kecepatan (ringan).
 • */bandwidth* — info bandwidth/latensi ringkas.
 • */pool_count* — jumlah total proxy di pool.
 
-Kamu bisa menekan tombol di bawah *Menu User* atau kirim command-nya langsung.`
+Kamu bisa menekan tombol di *Menu User* atau kirim command langsung.`
   );
 }
 
@@ -27,12 +29,18 @@ function helpAdminText() {
 `*📜 Perintah Admin*
 
 • */menu_admin* — tampilkan tombol fitur admin.
+• */users* — lihat daftar user (10 per halaman).
 • */broadcast* — kirim siaran (teks/foto, galeri).
-• */stats7* — statistik & tren 7 hari terakhir.
-• */pool_admin* — kelola pool proxy (maintenance).
+• */stats7* — statistik 7 hari terakhir.
+• */pool_admin* — kelola pool proxy.
 
-Catatan: Hanya ID yang terdaftar di *ADMIN_IDS* yang bisa memakai perintah ini.`
+Hanya ID di *ADMIN_IDS* yang bisa memakai ini.`
   );
+}
+
+function fmtUsername(u) {
+  if (!u) return '-';
+  return u.startsWith('@') ? u : '@' + u;
 }
 
 export default {
@@ -54,7 +62,7 @@ export default {
         const chatId = String(cb.message?.chat?.id || '');
         body.message = {
           chat: { id: chatId, type: 'private' },
-          text: data.slice(9),
+          text: data.slice(9), // misal: "/users 2"
           from: cb.from
         };
         delete body.callback_query;
@@ -69,22 +77,23 @@ export default {
       const chatId    = String(msg.chat.id);
       const chatType  = String(msg.chat.type || 'private');
       const firstName = (msg.from?.first_name) || '';
-      const username  = msg.from?.username ? ('@' + msg.from.username) : '';
+      const username  = msg.from?.username || '';
       const text      = (msg.text || '').trim();
       const isAdmin   = settings.ADMIN_IDS.map(String).includes(chatId);
 
-      // catat statistik di background (non-blocking)
+      // catat statistik di background
       runBg(ctx, addSubscriber(env, chatId));
-      runBg(ctx, statsTrack(env, chatId, username, chatType, 'message'));
+      runBg(ctx, statsTrack(env, chatId, username ? '@'+username : '', chatType, 'message'));
       runBg(ctx, ensureTotalUsers(env));
+      // upsert index user untuk fitur /users
+      runBg(ctx, upsertUserIndex(env, { id: chatId, name: firstName, username }));
 
       // ---- /start | /menu
       if (/^\/(start|menu)\b/i.test(text)) {
         const hello =
 `Halo *${firstName}*, aku adalah asisten pribadimu.
-Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
 
-👤 Nama: *${firstName}* ${username ? `(${username})` : ''}
+👤 Nama: *${firstName}* ${username ? `(@${username})` : ''}
 🆔 ID: \`${chatId}\`
 🕒 Waktu: _${formatNowTZ(settings.TIMEZONE)}_`;
         runBg(ctx, sendMessage(settings, env, chatId, hello, K_MAIN));
@@ -101,6 +110,18 @@ Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
         return new Response('OK', { status: 200 });
       }
 
+      // ---- /myid (untuk semua user)
+      if (/^\/myid\b/i.test(text)) {
+        const info =
+`*Detail Akun Kamu*
+• *Nama*      : ${firstName || '-'}
+• *ID*        : \`${chatId}\`
+• *Username*  : ${fmtUsername(username)}
+• *Timezone*  : ${settings.TIMEZONE || 'UTC'}`;
+        runBg(ctx, sendMessage(settings, env, chatId, info));
+        return new Response('OK', { status: 200 });
+      }
+
       // ---- Admin Menus
       if (text === '/menu_admin') {
         if (!isAdmin) {
@@ -109,7 +130,7 @@ Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
         }
         runBg(ctx, sendMessage(
           settings, env, chatId,
-          '*Menu Admin*\n• Broadcast teks/foto (galeri) dengan preview.\n• Stats & tren 7 hari.\n• Kelola pool proxy.',
+          '*Menu Admin*\n• List Users, Broadcast, Stats7, Kelola Pool Proxy.',
           K_ADMIN()
         ));
         return new Response('OK', { status: 200 });
@@ -123,7 +144,37 @@ Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
         return new Response('OK', { status: 200 });
       }
 
-      // ==== Command lain (placeholder, tetap seperti sebelumnya)
+      // ---- /users [page] (ADMIN)
+      if (/^\/users(\s+\d+)?\b/i.test(text)) {
+        if (!isAdmin) {
+          runBg(ctx, sendMessage(settings, env, chatId, '🙏 Maaf, fitur ini hanya untuk admin.'));
+          return new Response('OK', { status: 200 });
+        }
+        const parts = text.split(/\s+/).filter(Boolean);
+        const page = parts[1] ? parseInt(parts[1], 10) : 1;
+
+        const PAGE_SIZE = 10;
+        const { page: p, total, totalPages, users } = await getUsersPage(env, page, PAGE_SIZE);
+
+        let out =
+`*👥 Daftar Pengguna* (hal. ${p}/${totalPages})
+*Jumlah user*: ${total}
+
+`;
+        if (!users.length) {
+          out += '_Belum ada data pengguna._';
+        } else {
+          // tampilkan 10 per halaman
+          users.forEach((u, idx) => {
+            out += `${(p - 1) * PAGE_SIZE + idx + 1}. *${u.name || '-'}*\n   ID: \`${u.id}\`\n   Username: ${fmtUsername(u.username)}\n`;
+          });
+        }
+
+        runBg(ctx, sendMessage(settings, env, chatId, out, K_USERS_PAGER(p, totalPages)));
+        return new Response('OK', { status: 200 });
+      }
+
+      // ==== Command lain (placeholder tetap)
       if (text === '/random_proxy') {
         runBg(ctx, sendMessage(settings, env, chatId, '🎲 Mencari proxy acak…'));
         return new Response('OK', { status: 200 });
@@ -141,7 +192,6 @@ Tolong rawat aku ya seperti kamu merawat diri sendiri 😘
         return new Response('OK', { status: 200 });
       }
       if (text === '/broadcast' || text === '/stats7' || text === '/pool_admin') {
-        // biarkan modul/handler asli kamu yang memproses; di sini cukup ACK cepat
         runBg(ctx, sendMessage(settings, env, chatId, '✅ Perintah diterima. Memproses…'));
         return new Response('OK', { status: 200 });
       }
