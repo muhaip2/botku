@@ -1,4 +1,4 @@
-// Util kecil untuk baca/tulis JSON di KV
+// Helper KV <-> JSON
 async function kvGetJSON(env, key, fallback) {
   const raw = await env.BOT_DATA.get(key);
   if (!raw) return structuredClone(fallback);
@@ -8,10 +8,15 @@ async function kvPutJSON(env, key, value) {
   await env.BOT_DATA.put(key, JSON.stringify(value));
 }
 
-/**
- * Pastikan counter total user ada.
- * @returns {Promise<number>} nilai total user saat ini
- */
+/** Ekspor util sebagai objek KV agar import `{ KV }` valid */
+export const KV = {
+  async get(env, key) { return env.BOT_DATA.get(key); },
+  async put(env, key, val) { return env.BOT_DATA.put(key, val); },
+  getJSON: kvGetJSON,
+  putJSON: kvPutJSON,
+};
+
+/** Pastikan counter total user ada */
 export async function ensureTotalUsers(env) {
   const raw = await env.BOT_DATA.get('total_users');
   if (!raw) {
@@ -22,14 +27,10 @@ export async function ensureTotalUsers(env) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/**
- * Tambah subscriber baru (berdasarkan chat id).
- * Tersimpan di key "subscribers" (array number/string).
- */
+/** Tambah subscriber baru */
 export async function addSubscriber(env, chatId) {
   const key = 'subscribers';
   const list = await kvGetJSON(env, key, []);
-
   if (!list.includes(chatId)) {
     list.push(chatId);
     await kvPutJSON(env, key, list);
@@ -40,11 +41,7 @@ export async function addSubscriber(env, chatId) {
   return true;
 }
 
-/**
- * Catat trafik harian berdasarkan tipe chat.
- * Key: "stats:traffic:today"
- * Struktur: { date: 'YYYY-MM-DD', private: number, group: number, total: number }
- */
+/** Catat trafik harian berdasarkan tipe chat */
 export async function statsTrack(env, chatType) {
   const key = 'stats:traffic:today';
   const today = new Date().toISOString().slice(0, 10);
@@ -53,19 +50,15 @@ export async function statsTrack(env, chatType) {
     date: today, private: 0, group: 0, total: 0,
   });
 
-  // Reset kalau tanggal berganti
   if (data.date !== today) {
     data = { date: today, private: 0, group: 0, total: 0 };
   }
 
-  // —— FIX: jangan pakai (kondisi ? a : b)++ karena invalid assignment target
-  if (String(chatType) === 'private') {
-    data.private += 1;
-  } else {
-    data.group += 1;
-  }
+  // FIX: jangan increment pada hasil ternary
+  if (String(chatType) === 'private') data.private += 1;
+  else data.group += 1;
   data.total += 1;
 
   await kvPutJSON(env, key, data);
   return data;
-}
+    }
