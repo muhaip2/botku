@@ -1,5 +1,5 @@
 name = "botku"
-main = "src/bot.js"
+main = "_worker.js"
 compatibility_date = "2025-11-06"
 
 # Bind KV namespace (buat dari wrangler: wrangler kv:namespace create "BOT_DATA")
