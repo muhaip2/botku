@@ -1,38 +1,29 @@
 name = "botku"
-main = "src/bot.js"
+main = "_worker.js"
 compatibility_date = "2025-11-06"
 
-# Bind KV namespace (buat dari wrangler: wrangler kv:namespace create "BOT_DATA")
-kv_namespaces = [
-  { binding = "BOT_DATA", id = "<KV_NAMESPACE_ID>", preview_id = "<KV_NAMESPACE_PREVIEW_ID>" }
-]
-
 [vars]
-# Wajib
-TELEGRAM_API_URL = "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/"
-API_URL = "https://example.com/api?="
-
-# Opsional (isi sesuai kebutuhan)
-SERVER_WILDCARD = ""
-SERVER_VLESS = ""
-SERVER_TROJAN = ""
-PASSUUID = ""
-ADMIN_IDS = ""
-ADMIN_WATERMARK = "──────────────────── \n 👤 Admin: @SWDSTORE \n 📎 t.me/SWDSTORE"
-WATERMARK_POSITION = "bottom"
+# Ubah sesuai punyamu
+TELEGRAM_API_URL = "https://api.telegram.org/botXXXXXXXXX:YYYYYYYYYYYYYYYY/"
+API_URL = "https://ip.your-domain.tld/api?ip="
+SERVER_WILDCARD = "wc.example.com"
+SERVER_VLESS = "vless.example.com"
+SERVER_TROJAN = "trojan.example.com"
+PASSUUID = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+ADMIN_IDS = "123456789,987654321"
+ADMIN_WATERMARK = "────────────────────\n👤 Admin: @SWDSTORE\n📎 t.me/SWDSTORE"
 TIMEZONE = "Asia/Jakarta"
-PROXY_POOL = ""
-PROXY_POOL_URL = ""
-PROXY_POOL_TTL = "900"
-REQ_DELAY_MS = "35"
-COUNTRY_PAGE_SIZE = "18"
-COUNTRY_LIST_LIMIT = "20"
-MAX_ACTIVE_IP_LIST = "6"
-RANDOM_PROXY_COUNT = "10"
-COUNTRY_CACHE_TTL = "600"
-LIMIT_MAX_PER_MIN = "30"
-LIMIT_BURST = "20"
-CMD_COOLDOWN_MS = "1200"
-SPEED_PINGS = "5"
-SPEED_DL_BYTES = "10000000"
-WILDCARD_MAP_JSON = "{\"cache\":\"cache.netflix.com\",\"quiz\":\"quiz.vidio.com\",\"support\":\"support.zoom.us\"}"
+WATERMARK_POSITION = "bottom"
+
+# optional tuning
+COUNTRY_CACHE_TTL = 600
+ACTIVE_IPS_TTL = 180
+META_TIMEOUT_MS = 2500
+CONCURRENCY = 8
+SCAN_LIMIT = 1200
+COUNTRY_PAGE_SIZE = 18
+RANDOM_PROXY_COUNT = 10
+
+[[kv_namespaces]]
+binding = "BOT_DATA"
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
