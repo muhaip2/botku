@@ -24,7 +24,7 @@ const todayKeyUTC = (off = 0) => {
   const dd = String(d.getUTCDate()).padStart(2, '0');
   return `${y}${m}${dd}`;
 };
-export const todayKey = todayKeyUTC; // jika ada modul lama yang pakai nama ini
+export const todayKey = todayKeyUTC; // alias
 
 // ======= Wrapper KV (namespace BOT_DATA) =======
 export const KV = {
@@ -38,8 +38,6 @@ export const KV = {
   },
   async list(env, prefix) {
     let cursor; const out = [];
-    // Pages KV list membutuhkan loop cursor
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const r = await env.BOT_DATA.list({ prefix, cursor });
       out.push(...r.keys.map(k => k.name));
@@ -90,6 +88,13 @@ export async function statsTrack(env, userId, username, chatType, cmd = 'message
 
   const d = (await KV.get(env, dayKey)) || { messages: 0, private: 0, group: 0 };
   d.messages++;
-  (String(chatType) === 'private' ? d.private : d.group)++;
+
+  // ✅ perbaikan: jangan pakai ternary++ (illegal)
+  if (String(chatType) === 'private') {
+    d.private = (d.private || 0) + 1;
+  } else {
+    d.group = (d.group || 0) + 1;
+  }
+
   await KV.set(env, dayKey, d);
-                                             }
+    }
