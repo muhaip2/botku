@@ -9,7 +9,7 @@ const USERS_INDEX_KEY = 'users:index:v1'; // simpan daftar pengguna
 function getKV(env) {
   if (env.KV) return env.KV;
   // fallback nama umum lain (opsional)
-  if (env.BOT_KV) return env.BOT_KV;
+  if (env.BOT_DATA) return env.BOT_DATA;
   throw new Error('KV namespace not found on env');
 }
 
