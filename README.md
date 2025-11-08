@@ -42,20 +42,73 @@ botku/
 ## 🚀 Deploy ke Cloudflare Workers
 
 ### 1️⃣ Install Wrangler
-```bash
-npm install -g wrangler
 
-wrangler kv:namespace create DATA_DB
+`bash
+npm install -g wrangler`
 
-wrangler secret put TELEGRAM_BOT_TOKEN
+### 2️⃣ Buat Namespace KV
+
+`wrangler kv:namespace create DATA_DB`
+
+Catat ID hasilnya, lalu isi ke wrangler.toml.
+---
+
+### 3️⃣ Isi File Konfigurasi
+
+`wrangler secret put TELEGRAM_BOT_TOKEN
 wrangler secret put PASSUID
 wrangler secret put ADMIN_ID              # contoh: 797659707,123456
 wrangler secret put CLOUDFLARE_API_TOKEN  # opsional untuk /bandwidth
-wrangler secret put CLOUDFLARE_ZONE_ID    # opsional untuk /bandwidth
+wrangler secret put CLOUDFLARE_ZONE_ID    # opsional untuk /bandwidth`
 
-https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://<your-worker-subdomain>/webhook
+Edit wrangler.toml sesuai data kamu:
 
-https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
+`name = "botku"
+main = "src/botku.js"
+compatibility_date = "2025-11-08"`
+
+`[[kv_namespaces]]
+binding = "DATA_DB"
+id = "<KV_NAMESPACE_ID>"`
+
+`[vars]
+SERVERVLESS = "vless.example.com"
+SERVERTROJAN = "trojan.example"
+SERVERWILDCARD = "wc.example.com"
+API_URL = "https://ip.example.com/api?ip="
+API_DOMPUL = "http://api.example.com/cek_kuota?msisdn="
+SUPPORT_IMAGE_URL = "https://raw.githubusercontent.com/muhaip2/botku/a0421fca48e383cf05a3a49114702c924b571745/Kode%20QR.jpg"
+WATERMARK = " ADMIN t.me/swdstore2"`
+
+
+---
+
+### 4️⃣ Tambahkan Secrets (data rahasia)
+
+`wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put PASSUID
+wrangler secret put ADMIN_ID              # contoh: 2345678,123456
+wrangler secret put CLOUDFLARE_API_TOKEN  # opsional untuk /bandwidth
+wrangler secret put CLOUDFLARE_ZONE_ID    # opsional untuk /bandwidth`
+
+---
+### 5️⃣ Deploy!
+
+`wrangler deploy`
+
+---
+### 6️⃣ Set Webhook Bot Telegram
+
+`https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://<your-worker-subdomain>/webhook`
+
+Cek status webhook:
+
+`https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo`
+
+Biar lebih mudah kalian bisa setWebhook di bot telegramku :
+
+[Bot setWebhook](t.me/arayamete_bot)
+
 
 🧩 Command yang Tersedia
 
@@ -63,7 +116,7 @@ https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
 
 Command	Fungsi
 
-/start / /menu	Pesan sambutan & tombol menu
+/start | /menu	Pesan sambutan & tombol menu
 .cek <no>	Cek kuota via API_DOMPUL
 /getrandomproxy	Ambil proxy random per negara
 /bandwidth	Cek statistik Cloudflare
@@ -116,6 +169,14 @@ Proxy List GitHub raw
 
 🧑‍💻 Kontributor
 
-SWD STORE
+TELEGRAM
 
-> Telegram: @swdstore2
+> [SWD VPN STORE](t.me/swdstore2)
+
+
+> 
+
+📜 Lisensi
+
+MIT License © 2025
+Gunakan dengan bijak — proyek ini dibuat untuk edukasi & manajemen proxy pribadi.
