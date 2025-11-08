@@ -52,23 +52,34 @@ wrangler secret put CLOUDFLARE_ZONE_ID    # opsional untuk /bandwidth`
 
 Edit wrangler.toml sesuai data kamu:
 
-``
 name = "botku"
+
 main = "src/botku.js"
-compatibility_date = "2025-11-08"``
 
-`[[kv_namespaces]]
+compatibility_date = "2025-11-08"
+
+[[kv_namespaces]]
+
 binding = "DATA_DB"
-id = "<KV_NAMESPACE_ID>"`
 
-`[vars]
+id = "<KV_NAMESPACE_ID>"
+
+
+[vars]
+
 SERVERVLESS = "vless.example.com"
+
 SERVERTROJAN = "trojan.example"
+
 SERVERWILDCARD = "wc.example.com"
+
 API_URL = "https://ip.example.com/api?ip="
+
 API_DOMPUL = "http://api.example.com/cek_kuota?msisdn="
+
 SUPPORT_IMAGE_URL = "https://raw.githubusercontent.com/muhaip2/botku/a0421fca48e383cf05a3a49114702c924b571745/Kode%20QR.jpg"
-WATERMARK = " ADMIN t.me/swdstore2"`
+
+WATERMARK = " ADMIN t.me/swdstore2"
 
 
 ---
@@ -166,12 +177,19 @@ TELEGRAM
 Terima kasih para suhu 😊
 
 > Sonzai X シ
+
 > 𝙍𝙞𝙯𝙠𝙞𝙃𝙙𝙮𝙩
+
 > ᠌ℤ𝔼ℝ𝕆
+
 > Noir7R
+
 > Black Swan♤
+
 > ▄︻デGeo project══━一
+
 > ➥ DARK ✘ SYSTEM㋡
+
 
 📜 Lisensi
 
