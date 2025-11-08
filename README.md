@@ -173,8 +173,15 @@ TELEGRAM
 
 > [SWD VPN STORE](t.me/swdstore2)
 
+Terima kasih para suhu 😊
 
-> 
+> Sonzai X シ
+> 𝙍𝙞𝙯𝙠𝙞𝙃𝙙𝙮𝙩
+> ᠌ℤ𝔼ℝ𝕆
+> Noir7R
+> Black Swan♤
+> ▄︻デGeo project══━一
+> ➥ DARK ✘ SYSTEM㋡
 
 📜 Lisensi
 
