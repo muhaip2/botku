@@ -28,17 +28,6 @@ Tombol tambahan di menu utama:
 
 ---
 
-## 📂 Struktur Proyek
-botku/
-├─ src/
-│  └─ botku.js
-├─ wrangler.toml
-├─ .gitignore
-└─ README.md
-
-----
----
-
 ## 🚀 Deploy ke Cloudflare Workers
 
 ### 1️⃣ Install Wrangler
@@ -63,9 +52,10 @@ wrangler secret put CLOUDFLARE_ZONE_ID    # opsional untuk /bandwidth`
 
 Edit wrangler.toml sesuai data kamu:
 
-`name = "botku"
+``
+name = "botku"
 main = "src/botku.js"
-compatibility_date = "2025-11-08"`
+compatibility_date = "2025-11-08"``
 
 `[[kv_namespaces]]
 binding = "DATA_DB"
