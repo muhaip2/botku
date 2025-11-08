@@ -1,29 +1,16 @@
 name = "botku"
-main = "_worker.js"
-compatibility_date = "2025-11-06"
-
-[vars]
-# Ubah sesuai punyamu
-TELEGRAM_API_URL = "https://api.telegram.org/botXXXXXXXXX:YYYYYYYYYYYYYYYY/"
-API_URL = "https://ip.your-domain.tld/api?ip="
-SERVER_WILDCARD = "wc.example.com"
-SERVER_VLESS = "vless.example.com"
-SERVER_TROJAN = "trojan.example.com"
-PASSUUID = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-ADMIN_IDS = "123456789,987654321"
-ADMIN_WATERMARK = "────────────────────\n👤 Admin: @SWDSTORE\n📎 t.me/SWDSTORE"
-TIMEZONE = "Asia/Jakarta"
-WATERMARK_POSITION = "bottom"
-
-# optional tuning
-COUNTRY_CACHE_TTL = 600
-ACTIVE_IPS_TTL = 180
-META_TIMEOUT_MS = 2500
-CONCURRENCY = 8
-SCAN_LIMIT = 1200
-COUNTRY_PAGE_SIZE = 18
-RANDOM_PROXY_COUNT = 10
+main = "src/_worker.js"
+compatibility_date = "2025-11-08"
 
 [[kv_namespaces]]
-binding = "BOT_DATA"
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+binding = "DATA_DB"
+id = "<KV_NAMESPACE_ID>"
+
+[vars]
+SERVERVLESS = "vless.example.com"
+SERVERTROJAN = "trojan.example.com"
+SERVERWILDCARD = "wc.example.com"
+API_URL = "https://ip.example.com/api?ip="
+API_DOMPUL = "http://api.example.com/cek_kuota?msisdn="
+SUPPORT_IMAGE_URL = "https://raw.githubusercontent.com/muhaip2/botku/a0421fca48e383cf05a3a49114702c924b571745/Kode%20QR.jpg"
+WATERMARK = " ADMIN t.me/swdstore2"
